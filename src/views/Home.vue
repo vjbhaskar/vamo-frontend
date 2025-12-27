@@ -33,7 +33,7 @@ const goToFormEligibility = () => {
         </div>
       </v-col>
       <v-col cols="6">
-        <img class="landing-image" src="@/assets/landing-image.png" />
+        <img class="landing-image" src="/property-images/landing-image.png" />
       </v-col>
     </v-row>
   </div>
