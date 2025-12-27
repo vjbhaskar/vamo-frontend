@@ -12,7 +12,7 @@ const propertyType = ref("");
 const emit = defineEmits<Emits>();
 
 const getImageUrl = (path: string): string => {
-  return `/src/assets/${path}`;
+  return `@/assets/${path}`;
 };
 
 const selectPropertyType = (propertySelected: string) => {
