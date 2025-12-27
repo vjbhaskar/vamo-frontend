@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --skipLibCheck && vite build --mode production",
-    "build:dev": "vue-tsc --skipLibCheck && vite build --mode development",
+    "build": "vue-tsc --noEmit --skipLibCheck && vite build --mode production",
+    "build:dev": "vue-tsc --noEmit --skipLibCheck && vite build --mode development",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
