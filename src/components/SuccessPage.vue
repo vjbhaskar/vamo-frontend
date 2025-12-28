@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 interface Props {
-  leadId: string;
+  id: string;
+  stage: string;
 }
 const router = useRouter();
 const props = defineProps<Props>();
@@ -27,9 +28,8 @@ const handleGoHome = () => {
 
     <v-card-subtitle class="text-h6 mb-6">
       Your lead ID:
-      <span class="text-primary font-weight-black">{{
-        leadId || "12345"
-      }}</span>
+      <span class="text-primary font-weight-black">{{ id || "12345" }}</span>
+      <span> Your lead is current in stage: {{ stage }}</span>
     </v-card-subtitle>
 
     <v-card-text
