@@ -184,3 +184,41 @@ export interface FileUploadProps {
   fieldName: string;
   files: File[];
 }
+
+export const INIT_VALUES = {
+  version: "1.2.0",
+  contact: {
+    contactInformation: {
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      newsletterSingleOptIn: false,
+    },
+    address: {
+      street: "",
+      city: "",
+      postalCode: "",
+      countryCode: "",
+    },
+  },
+  building: {
+    address: {
+      street: "",
+      city: "",
+      postalCode: "",
+      countryCode: "",
+    },
+    buildingInformation: {
+      immoType: "",
+    },
+    ownershipRelationships: {},
+    energyRelevantInformation: {},
+  },
+  heatingSystem: {},
+  project: {
+    pictures: {
+      outdoorUnitLocation: null,
+    },
+  },
+};

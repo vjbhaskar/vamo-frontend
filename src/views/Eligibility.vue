@@ -1,102 +1,51 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useForm, configure } from "vee-validate";
 import BuildingType from "../components/BuildingType.vue";
 import UserInfo from "../components/userInfo.vue";
 import AddressInfo from "../components/AddressInfo.vue";
-import {
-  addressSchema,
-  buildingInformationSchema,
-  leadValidationSchema,
-} from "../schemas/validationSchema";
+import { addressSchema } from "../schemas/validationSchema";
 import BuildingInformation from "../components/BuildingInformation.vue";
 import HeatingSystem from "../components/HeatingSystem.vue";
 import ProjectInformation from "../components/ProjectInformation.vue";
 import OwnershipInforation from "../components/OwnershipInforation.vue";
 import SuccessPage from "../components/SuccessPage.vue";
-import apiClient from "../api/api";
 import HeatingRoom from "../components/HeatingRoom.vue";
 import LeadSnackBar from "../components/LeadSnackbar.vue";
 import { FileUploadProps } from "../utils/types";
 import { AxiosError } from "axios";
+import stepperHelper from "../helpers/stepperHelper";
+import { submitLead } from "../helpers/submitLeadHelper";
+import { ValidationError } from "yup";
 interface ErrorDataProps {
   reason: string;
   issues: string[];
 }
 
-const step = ref(1);
-const backupStep = ref(1);
+interface LeadData {
+  id: string;
+  stage: string;
+}
+const {
+  step,
+  backupStep,
+  values,
+  handlePropertyTypeNext,
+  checkForStepValidity,
+  setFieldValue,
+  handleSubmit,
+} = stepperHelper();
 const showLeadSnackBar = ref(false);
-const leadId = ref("");
+const leadObject = ref<LeadData>({
+  id: "",
+  stage: "",
+});
+
+const isLoading = ref(false);
 
 const errorData = ref<ErrorDataProps>({
   reason: "",
   issues: [],
 });
-configure({
-  validateOnBlur: true,
-  validateOnChange: true,
-  validateOnInput: false,
-  validateOnModelUpdate: true,
-});
-const { handleSubmit, setFieldValue, values, validateField } = useForm({
-  validationSchema: leadValidationSchema,
-  initialValues: {
-    version: "1.2.0",
-    contact: {
-      contactInformation: {
-        firstName: "",
-        lastName: "",
-        phone: "",
-        email: "",
-        newsletterSingleOptIn: false,
-      },
-      address: {
-        street: "",
-        city: "",
-        postalCode: "",
-        countryCode: "",
-      },
-    },
-    building: {
-      address: {
-        street: "",
-        city: "",
-        postalCode: "",
-        countryCode: "",
-      },
-      buildingInformation: {
-        immoType: "",
-      },
-      ownershipRelationships: {},
-      energyRelevantInformation: {},
-    },
-    heatingSystem: {},
-    project: {
-      pictures: {
-        outdoorUnitLocation: null,
-      },
-    },
-  },
-});
-
-const SUPPORTED_HOUSE_TYPES = [
-  "Single-family house / Two-family house",
-  "Semi-detached house / Terraced house",
-  "Apartment",
-];
-
-const handlePropertyTypeNext = (value: string) => {
-  const isSupported = SUPPORTED_HOUSE_TYPES.includes(value);
-
-  if (!isSupported) {
-    backupStep.value = step.value;
-    step.value = -1;
-    return;
-  }
-  setFieldValue("building.buildingInformation.immoType", value);
-  step.value = 2;
-};
 
 const notSupportedFlow = () => {
   backupStep.value = step.value;
@@ -125,40 +74,24 @@ const next = async () => {
   let isStepValid = false;
 
   try {
-    if (step.value === 5) {
-      await buildingInformationSchema.validate(
-        values.building.buildingInformation,
-        {
-          abortEarly: false,
-        }
-      );
-      isStepValid = true;
-    } else if (step.value === 3) {
-      await addressSchema.validate(values.building.address, {
-        abortEarly: false,
-      });
-      isStepValid = true;
-    } else if (step.value === 8) {
-      const results = await Promise.all([
-        validateField("contact.contactInformation.firstName"),
-        validateField("contact.contactInformation.lastName"),
-        validateField("contact.contactInformation.email"),
-        validateField("contact.contactInformation.phone"),
-      ]);
-      isStepValid = results.every((result) => result.valid);
-    } else if (step.value === 9) {
+    isStepValid = await checkForStepValidity();
+    if (step.value === 9) {
       await addressSchema.validate(values.contact.address, {
         abortEarly: false,
       });
-      isStepValid = true;
+      isLoading.value = true;
+      isStepValid = false;
       await onFinalSubmit();
-
-      return;
-    } else {
-      isStepValid = true;
     }
-  } catch (err: any) {
-    console.log("Validation Error:", err.errors);
+  } catch (error: unknown) {
+    console.log("Validation Error in eligibility:", error);
+    if (error instanceof ValidationError) {
+      showLeadSnackBar.value = true;
+      errorData.value = {
+        reason: "Please fix validation errors",
+        issues: [""],
+      };
+    }
     isStepValid = false;
   }
 
@@ -175,27 +108,12 @@ const onFileUploaded = (value: FileUploadProps) => {
 const onFinalSubmit = handleSubmit(async (values) => {
   console.log("onfinal Submit", values);
   try {
-    const formData = new FormData();
-    const jsonBlob = JSON.parse(JSON.stringify(values));
-
-    if (jsonBlob.project?.pictures) {
-      jsonBlob.project.pictures.outdoorUnitLocation = [];
-    }
-    formData.append("data", JSON.stringify(jsonBlob));
-
-    const rawFile = values.project?.pictures?.outdoorUnitLocation;
-    if (rawFile) {
-      const fileToUpload = Array.isArray(rawFile) ? rawFile[0] : rawFile;
-      formData.append("outdoorUnitLocation", fileToUpload);
-    }
-
-    const response = await apiClient.post("/leads", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await submitLead(values);
 
     if (response.status === 201 || response.status === 200) {
       console.log("Lead created successfully!", response.data);
-      leadId.value = response.data.data._id;
+      leadObject.value.id = response.data.data._id;
+      leadObject.value.stage = response.data.data.vamoData.leadStage;
 
       step.value = 10;
     }
@@ -208,6 +126,8 @@ const onFinalSubmit = handleSubmit(async (values) => {
       reason: "Something went wrong!",
       issues: ["500"],
     };
+  } finally {
+    isLoading.value = false;
   }
 });
 
@@ -253,7 +173,12 @@ const toggleSnackBar = (value: boolean) => {
           <BuildingInformation @next="next" @back="goBack" />
         </v-stepper-window-item>
         <v-stepper-window-item :value="3">
-          <AddressInfo keyType="building" @next="next" @back="goBack" />
+          <AddressInfo
+            keyType="building"
+            :isLoading="isLoading"
+            @next="next"
+            @back="goBack"
+          />
         </v-stepper-window-item>
         <v-stepper-window-item :value="4">
           <HeatingSystem @next="next" @back="goBack" />
@@ -279,10 +204,15 @@ const toggleSnackBar = (value: boolean) => {
           <UserInfo @next="next" @back="goBack" />
         </v-stepper-window-item>
         <v-stepper-window-item :value="9">
-          <AddressInfo keyType="contact" @next="next" @back="goBack" />
+          <AddressInfo
+            keyType="contact"
+            :isLoading="isLoading"
+            @next="next"
+            @back="goBack"
+          />
         </v-stepper-window-item>
         <v-stepper-window-item :value="10">
-          <SuccessPage :leadId="leadId" />
+          <SuccessPage :id="leadObject.id" :stage="leadObject.stage" />
         </v-stepper-window-item>
         <v-stepper-window-item :value="-1">
           <v-card

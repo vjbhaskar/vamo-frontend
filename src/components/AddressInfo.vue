@@ -3,6 +3,7 @@ import { useField } from "vee-validate";
 
 interface Props {
   keyType: string;
+  isLoading: boolean;
 }
 
 const props = defineProps<Props>();
@@ -45,16 +46,16 @@ const nextStep = () => {
 
 <template>
   <v-card class="pa-4 d-flex flex-column" :style="{ minHeight: '600px' }">
-    <v-card-title class="text-h5 mb-6 px-0"
+    <v-card-title class="text-h5 mb-6 px-0" v-if="!isLoading"
       >{{ props.keyType === "contact" ? "Contact" : "Building" }} Address
     </v-card-title>
     <v-card-subtitle class="px-0" v-if="props.keyType === 'building'">
       Please enter the address where you want to install the heat pump
     </v-card-subtitle>
-    <v-card-subtitle v-if="props.keyType === 'contact'">
+    <v-card-subtitle v-if="props.keyType === 'contact' && !isLoading">
       Please enter your current address
     </v-card-subtitle>
-    <v-row class="mt-4">
+    <v-row class="mt-4" v-if="!isLoading">
       <v-col cols="12" md="6">
         <v-text-field
           v-model="street"
@@ -76,7 +77,7 @@ const nextStep = () => {
       </v-col>
     </v-row>
 
-    <v-row>
+    <v-row v-if="!isLoading">
       <v-col cols="6">
         <v-text-field
           v-model="postalCode"
@@ -97,6 +98,21 @@ const nextStep = () => {
         ></v-text-field>
       </v-col>
     </v-row>
+    <v-row
+      class="d-flex flex-column h-100"
+      justify="center"
+      align-content="center"
+      :style="{
+        minHeight: '500px',
+      }"
+      v-else
+    >
+      <v-progress-circular
+        indeterminate
+        :size="61"
+        :width="7"
+      ></v-progress-circular>
+    </v-row>
     <v-spacer></v-spacer>
     <v-card-actions class="px-0 pb-0" justify="end" align-content="center">
       <v-spacer></v-spacer>
@@ -104,7 +120,7 @@ const nextStep = () => {
         Back
       </v-btn>
       <v-btn variant="elevated" color="success" size="large" @click="nextStep">
-        Next
+        {{ props.keyType === "contact" ? "Submit" : "Next" }}
       </v-btn>
     </v-card-actions>
   </v-card>
